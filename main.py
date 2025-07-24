@@ -4,18 +4,19 @@ import requests
 import streamlit as st
 
 BASE_URL = "https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/"
+seasons = ["Summer", "Winter", "Spring"]
 
 def load_all_subject_codes() -> dict:
     with open('./subjects.json', 'r') as f:
         s = json.load(f)
     return {item["code"]: item["name"] for item in s}
 
-def get_paper_code(subject, paper, year, t) -> str:
-    paper_code = subject + "_" + "m" + year[2:] + "_" + t.lower() + "_" + paper + "2"
+def get_paper_code(subject, paper, variant, year, t) -> str:
+    paper_code = subject + "_" + variant + year[2:] + "_" + t.lower() + "_" + paper + "2"
     return paper_code
 
-def get_paper_link(subject, paper, year, t) -> str:
-    url = BASE_URL + get_paper_code(subject, paper, year, t) + '.pdf'
+def get_paper_link(subject, paper, variant, year, t) -> str:
+    url = BASE_URL + get_paper_code(subject, paper, variant, year, t) + '.pdf'
     return url
 
 def get_code_from_name(subjects, subject_name) -> str | None:
@@ -33,6 +34,7 @@ subjects = load_all_subject_codes()
 
 with st.form("paper_form"):
     subject = st.selectbox("Subject", subjects.values(), placeholder="Select a subject")
+    variant = st.selectbox("Variant", seasons, placeholder="Which variant/season is the paper in?")
     paper_type = st.selectbox(
         "Do you want the QP or the MS?",
         ("Question Paper", "Mark Scheme"),
@@ -51,10 +53,15 @@ if submitted:
     st.write(f"**Paper Number:** {paper_num}")
 
     pt = 'qp' if paper_type == 'Question Paper' else 'ms'
+    v = ('m' if variant == 'Spring' else
+         'w' if variant == 'Winter' else
+         's' if variant == 'Summer' else
+         None
+    )
 
     scode = get_code_from_name(subjects, subject)
 
-    url = get_paper_link(subject=scode, paper=paper_num, year=year, t=pt)
+    url = get_paper_link(subject=scode, paper=paper_num, year=year, variant=v, t=pt)
     resp = requests.get(url)
 
     # if an HTML file is returned, that means its the PapaCambridge main page so the file wasn't found
@@ -63,7 +70,7 @@ if submitted:
 
     if resp.status_code == 200:
         pdf_bytes = resp.content
-        download_name = get_paper_code(subject=subject, paper=paper_num, year=year, t=pt)
+        download_name = get_paper_code(subject=subject, paper=paper_num, year=year, variant=v, t=pt)
     else:
         st.error("Failed to retrieve the paper, please recheck your information or reload the app. If the issue persists, file an issue.")
 
